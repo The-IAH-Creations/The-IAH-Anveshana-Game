@@ -79,20 +79,23 @@
         }
         
         .ai-hint-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
             background: rgba(0, 229, 255, 0.1);
             border: 1px solid var(--primary);
             color: var(--primary);
-            padding: 15px 25px;
-            border-radius: 8px;
+            padding: 12px 20px;
+            border-radius: 50px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 0.9rem;
             transition: all 0.3s ease;
             box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
             backdrop-filter: blur(5px);
-            height: fit-content;
+            z-index: 100;
         }
-        .ai-hint-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 25px rgba(0, 229, 255, 0.6); }
+        .ai-hint-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 25px rgba(0, 229, 255, 0.6); transform: scale(1.05); }
 
         #crosshair {
             position: absolute;
@@ -233,8 +236,8 @@
                 <p style="margin-top: 15px;">Moksha Relics Located: <span id="relics-val">0</span> / 5</p>
                 <p style="margin-top: 5px;">Entities Neutralized: <span id="score-val">0</span></p>
             </div>
-            <button class="ai-hint-btn" id="hint-btn">AI AGENT: Analyze Strategy</button>
         </div>
+        <button class="ai-hint-btn" id="hint-btn">AI AGENT: Analyze</button>
         <div id="crosshair"></div>
     </div>
 
@@ -589,6 +592,22 @@
                 collidableObjects.push(wall);
             });
 
+            // Ancient Inner Chamber Door
+            const doorGeo = new THREE.BoxGeometry(20, 20, 2);
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x0a1118, metalness: 0.9, roughness: 0.1 });
+            const door = new THREE.Mesh(doorGeo, doorMat);
+            door.position.set(0, 10, -48);
+            templeGroup.add(door);
+            collidableObjects.push(door);
+            
+            // Mysterious floating monolith inside chamber area
+            const monoGeo = new THREE.OctahedronGeometry(4);
+            const monoMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x00ffcc, wireframe: true });
+            const monolith = new THREE.Mesh(monoGeo, monoMat);
+            monolith.position.set(0, 15, -70);
+            monolith.userData = { isRune: true, speed: 0.05 };
+            templeGroup.add(monolith);
+
             scene.add(templeGroup);
             return templeGroup;
         }
@@ -653,10 +672,10 @@
                 this.head.add(visor);
                 this.torso.add(this.head);
 
-                // Helper function to create pivoting limbs
                 const createLimb = (width, length, depth, posX, posY, posZ) => {
                     const group = new THREE.Group();
                     const geo = new THREE.BoxGeometry(width, length, depth);
+                    // Slightly rounded corners for realistic human limbs
                     const mesh = new THREE.Mesh(geo, mat);
                     mesh.position.y = -length / 2; // Shift mesh down so pivot is at the top
                     mesh.castShadow = true;
@@ -665,15 +684,15 @@
                     return group;
                 };
 
-                // 3. Arms
-                this.leftArm = createLimb(0.3 * scaleMulti, 1.2 * scaleMulti, 0.3 * scaleMulti, -0.65 * scaleMulti, 0.6 * scaleMulti, 0);
-                this.rightArm = createLimb(0.3 * scaleMulti, 1.2 * scaleMulti, 0.3 * scaleMulti, 0.65 * scaleMulti, 0.6 * scaleMulti, 0);
+                // 3. Arms (Human proportion adjusted)
+                this.leftArm = createLimb(0.25 * scaleMulti, 1.4 * scaleMulti, 0.25 * scaleMulti, -0.65 * scaleMulti, 0.6 * scaleMulti, 0);
+                this.rightArm = createLimb(0.25 * scaleMulti, 1.4 * scaleMulti, 0.25 * scaleMulti, 0.65 * scaleMulti, 0.6 * scaleMulti, 0);
                 this.torso.add(this.leftArm);
                 this.torso.add(this.rightArm);
 
                 // 4. Legs
-                this.leftLeg = createLimb(0.4 * scaleMulti, 1.5 * scaleMulti, 0.4 * scaleMulti, -0.3 * scaleMulti, -0.75 * scaleMulti, 0);
-                this.rightLeg = createLimb(0.4 * scaleMulti, 1.5 * scaleMulti, 0.4 * scaleMulti, 0.3 * scaleMulti, -0.75 * scaleMulti, 0);
+                this.leftLeg = createLimb(0.35 * scaleMulti, 1.5 * scaleMulti, 0.35 * scaleMulti, -0.3 * scaleMulti, -0.75 * scaleMulti, 0);
+                this.rightLeg = createLimb(0.35 * scaleMulti, 1.5 * scaleMulti, 0.35 * scaleMulti, 0.3 * scaleMulti, -0.75 * scaleMulti, 0);
                 this.torso.add(this.leftLeg);
                 this.torso.add(this.rightLeg);
 
@@ -722,16 +741,22 @@
                             this.targetPos.set(this.mesh.position.x + (Math.random() - 0.5) * 30, 0, this.mesh.position.z + (Math.random() - 0.5) * 30);
                             this.stateTimer = time + 3 + Math.random() * 3;
                         } else if (distToPlayer < 25) {
-                            // Apply Strategy heavily adapted from Silent AI training
+                            // Apply Strategy heavily adapted from Silent AI training + Random Dodging
                             const rand = Math.random();
-                            if (rand < GameState.enemyStrategy.evasionRate) {
+                            // Increase baseline evasion to force player to aim better
+                            if (rand < GameState.enemyStrategy.evasionRate + 0.3) {
                                 this.state = 'evade';
+                                // Calculate perpendicular dodge vector
                                 const awayVec = new THREE.Vector3().subVectors(this.mesh.position, camera.position).normalize();
-                                const cross = new THREE.Vector3().crossVectors(awayVec, new THREE.Vector3(0,1,0)).multiplyScalar((Math.random() > 0.5 ? 1 : -1) * 20);
-                                this.targetPos.copy(this.mesh.position).add(awayVec.multiplyScalar(8)).add(cross);
-                                this.stateTimer = time + 1.2; 
-                                this.speed = (5 + GameState.chapter) * GameState.enemyStrategy.speedMultiplier;
-                            } else if (rand < GameState.enemyStrategy.evasionRate + GameState.enemyStrategy.flankRate) {
+                                const cross = new THREE.Vector3().crossVectors(awayVec, new THREE.Vector3(0,1,0)).multiplyScalar((Math.random() > 0.5 ? 1 : -1) * 30);
+                                this.targetPos.copy(this.mesh.position).add(awayVec.multiplyScalar(5)).add(cross);
+                                
+                                // Occasional jump dodge feature for added vertical movement
+                                if(Math.random() > 0.5) this.mesh.position.y = 5; 
+                                
+                                this.stateTimer = time + 0.8; // Fast direction changes
+                                this.speed = (6 + GameState.chapter) * GameState.enemyStrategy.speedMultiplier;
+                            } else if (rand < GameState.enemyStrategy.evasionRate + GameState.enemyStrategy.flankRate + 0.2) {
                                 this.state = 'flank';
                                 const toPlayer = new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize();
                                 const cross = new THREE.Vector3().crossVectors(toPlayer, new THREE.Vector3(0,1,0)).multiplyScalar((Math.random() > 0.5 ? 1 : -1) * 25);
@@ -755,6 +780,12 @@
                 if (this.state === 'chase' || this.state === 'flank') {
                     this.targetPos.copy(camera.position);
                     this.targetPos.y = 0;
+                }
+
+                // Gravity for jump dodges
+                if (this.mesh.position.y > 0) {
+                    this.mesh.position.y -= delta * 15;
+                    if(this.mesh.position.y < 0) this.mesh.position.y = 0;
                 }
 
                 // Movement Execution
@@ -1078,19 +1109,19 @@
                 if (moveState.forward || moveState.backward) velocity.z -= direction.z * speed * delta;
                 if (moveState.left || moveState.right) velocity.x -= direction.x * speed * delta;
 
-                // Store previous position to revert if colliding
-                const oldX = controls.object.position.x;
-                const oldZ = controls.object.position.z;
+                // Store previous position to revert if colliding securely using direct camera reference
+                const oldX = camera.position.x;
+                const oldZ = camera.position.z;
 
                 controls.moveRight(-velocity.x * delta);
-                if(checkCollision(controls.object.position)) {
-                    controls.object.position.x = oldX;
+                if(checkCollision(camera.position)) {
+                    camera.position.x = oldX;
                     velocity.x = 0;
                 }
 
                 controls.moveForward(-velocity.z * delta);
-                if(checkCollision(controls.object.position)) {
-                    controls.object.position.z = oldZ;
+                if(checkCollision(camera.position)) {
+                    camera.position.z = oldZ;
                     velocity.z = 0;
                 }
                 
