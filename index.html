@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="The IAH: Anveshana - A AAA-style, strategy-based deep ocean exploration and action web game powered by AI.">
+    <title>The IAH: Anveshana</title>
+    <style>
+        :root {
+            --primary: #00e5ff;
+            --primary-dark: #008b99;
+            --bg-dark: rgba(0, 10, 20, 0.85);
+            --font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --danger: #ff3333;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: var(--font-main);
+            color: #fff;
+            user-select: none;
+        }
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            pointer-events: auto;
+        }
+        .stats {
+            background: var(--bg-dark);
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+            backdrop-filter: blur(5px);
+            min-width: 250px;
+        }
+        .stats h2 { margin: 0 0 10px 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; color: var(--primary); transition: color 0.3s; }
+        .stats p { margin: 5px 0; font-size: 0.95rem; font-weight: bold; letter-spacing: 1px; }
+        
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .ai-hint-btn {
+            background: rgba(0, 229, 255, 0.1);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 15px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+            backdrop-filter: blur(5px);
+            height: fit-content;
+        }
+        .ai-hint-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 25px rgba(0, 229, 255, 0.6); }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(0, 229, 255, 0.8);
+            box-shadow: 0 0 5px rgba(0, 229, 255, 0.5);
+        }
+        #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
+        #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 5, 15, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 20;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+        }
+        .hidden { display: none !important; }
+        .modal {
+            background: var(--bg-dark);
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--primary);
+            text-align: center;
+            max-width: 650px;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.15);
+        }
+        .modal h1 { color: var(--primary); text-transform: uppercase; letter-spacing: 3px; font-size: 2.5rem; margin-top: 0; }
+        .modal p { font-size: 1.1rem; line-height: 1.6; color: #ddd; margin-bottom: 20px;}
+        .highlight { color: var(--primary); font-weight: bold; }
+        
+        .btn {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(0, 229, 255, 0.5); }
+        
+        .store-container { display: flex; gap: 15px; justify-content: center; margin-top: 30px; flex-wrap: wrap;}
+        .store-item {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #444;
+            padding: 15px;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+            flex: 1;
+            min-width: 150px;
+        }
+        .store-item:hover { border-color: var(--primary); }
+        .store-item h3 { margin: 0 0 10px 0; font-size: 1rem; color: #aaa; }
+        .price { color: #00e5ff; font-weight: bold; font-size: 1.1rem; margin: 5px 0; }
+        
+        #chapter-alert {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 10px;
+            text-shadow: 0 0 20px rgba(0, 229, 255, 0.8);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 15;
+            transition: opacity 1s ease-in-out;
+        }
+
+        #hit-marker {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(255,0,0,0) 60%, rgba(255,0,0,0.4) 100%);
+            opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 5;
+        }
+        #heal-marker {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(0,255,170,0) 60%, rgba(0,255,170,0.3) 100%);
+            opacity: 0; transition: opacity 0.5s; pointer-events: none; z-index: 5;
+        }
+        #mobile-controls {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            #mobile-controls {
+                display: flex;
+                position: absolute;
+                bottom: 0; left: 0; width: 100%; height: 100%;
+                z-index: 11; pointer-events: none;
+            }
+            .touch-zone { flex: 1; pointer-events: auto; }
+            .hud-top { flex-direction: column; padding: 10px; }
+            .stats { min-width: 100%; box-sizing: border-box; }
+            .modal { padding: 20px; margin: 10px; max-height: 90vh; overflow-y: auto; }
+            .modal h1 { font-size: 1.8rem; }
+            .store-container { flex-direction: column; }
+            #chapter-alert { font-size: 2rem; width: 90%; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container"></div>
+    <div id="hit-marker"></div>
+    <div id="heal-marker"></div>
+    <div id="chapter-alert">Chapter II</div>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="stats">
+                <h2 id="chapter-title">Chapter I: The Abyss</h2>
+                <p>Integrity (Health): <span id="health-val">100</span>%</p>
+                <div class="progress-bar-container"><div id="health-bar" class="progress-bar" style="width: 100%; background: #00e5ff;"></div></div>
+                <p style="margin-top: 15px;">Energy Force: <span id="energy-val">0</span> / 100</p>
+                <div class="progress-bar-container"><div id="energy-bar" class="progress-bar" style="width: 0%; background: #ffaa00;"></div></div>
+                <p style="margin-top: 15px;">Moksha Relics Located: <span id="relics-val">0</span> / 5</p>
+                <p style="margin-top: 5px;">Entities Neutralized: <span id="score-val">0</span></p>
+            </div>
+            <button class="ai-hint-btn" id="hint-btn">AI AGENT: Analyze Strategy</button>
+        </div>
+        <div id="crosshair"></div>
+    </div>
+
+    <!-- Mobile Touch Zones -->
+    <div id="mobile-controls">
+        <div id="left-touch" class="touch-zone"></div>
+        <div id="right-touch" class="touch-zone"></div>
+    </div>
+
+    <div id="start-menu" class="overlay">
+        <div class="modal">
+            <h1>The IAH: Anveshana</h1>
+            <p><strong>MISSION BRIEFING:</strong> Descend into the sunken ruins of an ancient Indian Mandapa. The environment has been warped by an ancient entity, animating humanoid guardian armors. They adapt to your movements.</p>
+            <p class="highlight">Use strategy: Guardians may evade your aim. Use pillars for cover.</p>
+            <p style="color:#aaa; font-size:0.9rem;"><strong>CONTROLS:</strong> [W,A,S,D] to Move | [Mouse] to Look | [Left Click] to Fire Weapon | [Esc] to Pause</p>
+            <button class="btn" id="start-btn">Initiate Neural Link</button>
+            
+            <div class="store-container">
+                <div class="store-item">
+                    <h3>Superpower Core</h3>
+                    <p class="price">$4.99 USD</p>
+                    <button class="btn" style="padding: 8px 15px; font-size: 0.8rem;">Acquire</button>
+                </div>
+                <div class="store-item">
+                    <h3>Ancient Armor</h3>
+                    <p class="price">£3.50 GBP</p>
+                    <button class="btn" style="padding: 8px 15px; font-size: 0.8rem;">Acquire</button>
+                </div>
+                <div class="store-item">
+                    <h3>Moksha Relic</h3>
+                    <p class="price">₣5.00 CHF</p>
+                    <button class="btn" style="padding: 8px 15px; font-size: 0.8rem;">Acquire</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="hint-menu" class="overlay hidden">
+        <div class="modal">
+            <h2>AI Tactical Analysis</h2>
+            <p id="ai-hint-text">Analyzing your combat patterns... Deploying strategy.</p>
+            <button class="btn" id="close-hint-btn">Resume Operation</button>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        const GameState = {
+            chapter: 1,
+            health: 100,
+            energy: 0,
+            score: 0,
+            weaponPower: 25,
+            isBossSpawned: false,
+            shotsFired: 0,
+            hits: 0,
+            explorationPoints: 0, // New metric for finding hidden areas
+            relicsCollected: 0,
+            relicsTotal: 5,
+            isMobile: false,
+            playerPlaystyle: {
+                coverTime: 0,
+                rushTime: 0,
+                accuracy: 0,
+                lastPos: new THREE.Vector3()
+            },
+            enemyStrategy: {
+                flankRate: 0.2,
+                evasionRate: 0.3,
+                speedMultiplier: 1.0
+            }
+        };
+
+        // The Silent AI NLP Agent
+        const AIAgent = {
+            analyze: function() {
+                const accuracy = GameState.playerPlaystyle.accuracy;
+                let hint = "Explore the ruins to find glowing Moksha Relics to advance.";
+                
+                if (GameState.health < 40) {
+                    hint = "WARNING: Integrity critical. Retreat behind the Mandapa pillars to break line of sight.";
+                } else if (GameState.enemyStrategy.evasionRate > 0.5) {
+                    hint = "TACTICAL ADVICE: Guardians have adapted to your aggression. They are actively evading. Anticipate lateral movements.";
+                } else if (GameState.enemyStrategy.flankRate > 0.5) {
+                    hint = "TACTICAL ADVICE: Guardians detect your stationary position. Flanking maneuvers incoming. Stay mobile.";
+                } else if (GameState.energy >= 100) {
+                    hint = "SUPERPOWER ACTIVE: Your energy force is maxed. Neutralize targets rapidly.";
+                } else if (GameState.chapter >= 2 && !GameState.isBossSpawned) {
+                    hint = "The environment is growing unstable. Locate the remaining relics.";
+                }
+                return hint;
+            },
+            silentlyLearn: function(delta, playerPos) {
+                // Adaptive AI: Silently trains on player behavior to formulate enemy strategy
+                GameState.playerPlaystyle.accuracy = GameState.shotsFired > 0 ? (GameState.hits / GameState.shotsFired) : 0;
+
+                if (!playerPos) return;
+
+                const distMoved = GameState.playerPlaystyle.lastPos.distanceTo(playerPos);
+                if (distMoved < 2 * delta) {
+                    GameState.playerPlaystyle.coverTime += delta; // Player is camping/using cover
+                } else {
+                    GameState.playerPlaystyle.rushTime += delta; // Player is moving/rushing
+                }
+                GameState.playerPlaystyle.lastPos.copy(playerPos);
+
+                // Adjust AI strategy based on pattern recognition (Silent Training Mode)
+                if (GameState.playerPlaystyle.coverTime > GameState.playerPlaystyle.rushTime + 10) {
+                    GameState.enemyStrategy.flankRate = Math.min(0.8, GameState.enemyStrategy.flankRate + 0.05 * delta);
+                    GameState.enemyStrategy.evasionRate = Math.max(0.1, GameState.enemyStrategy.evasionRate - 0.02 * delta);
+                } else if (GameState.playerPlaystyle.rushTime > GameState.playerPlaystyle.coverTime + 10) {
+                    GameState.enemyStrategy.evasionRate = Math.min(0.8, GameState.enemyStrategy.evasionRate + 0.05 * delta);
+                    GameState.enemyStrategy.flankRate = Math.max(0.1, GameState.enemyStrategy.flankRate - 0.02 * delta);
+                }
+
+                // If player is highly accurate, enemies become faster
+                if (GameState.playerPlaystyle.accuracy > 0.6) {
+                    GameState.enemyStrategy.speedMultiplier = Math.min(2.5, GameState.enemyStrategy.speedMultiplier + 0.02 * delta);
+                }
+            }
+        };
+
+        function advanceChapter() {
+            GameState.chapter++;
+            const chapterTitles = ["The Abyss", "Sunken Citadel", "Realm of the Asura", "Moksha Absolute"];
+            const title = `Chapter ${romanize(GameState.chapter)}: ${chapterTitles[Math.min(GameState.chapter-1, 3)]}`;
+            document.getElementById('chapter-title').innerText = title;
+            
+            const alertEl = document.getElementById('chapter-alert');
+            alertEl.innerText = `CHAPTER ${romanize(GameState.chapter)}`;
+            alertEl.style.opacity = 1;
+            setTimeout(() => alertEl.style.opacity = 0, 4000);
+            
+            GameState.health = Math.min(100, GameState.health + 50); // Massive heal on chapter
+            document.getElementById('heal-marker').style.opacity = 1;
+            setTimeout(() => document.getElementById('heal-marker').style.opacity = 0, 500);
+            
+            GameState.relicsCollected = 0;
+            GameState.relicsTotal += 2; // Increase exploration difficulty
+            createRelics(GameState.relicsTotal);
+            updateUI();
+        }
+
+        function romanize(num) {
+            const lookup = {M:1000,CM:900,D:500,CD:400,C:100,XC:90,L:50,XL:40,X:10,IX:9,V:5,IV:4,I:1};
+            let roman = '', i;
+            for (i in lookup) {
+                while (num >= lookup[i]) { roman += i; num -= lookup[i]; }
+            }
+            return roman;
+        }
+
+        let audioCtx;
+        function initAudio() {
+            if(audioCtx) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            
+            // Deep Ocean Ambient Drone (Unique BGM)
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(45, audioCtx.currentTime); // Very Low frequency
+            
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(150, audioCtx.currentTime);
+            // Slowly sweep the filter to create an evolving atmosphere
+            filter.frequency.linearRampToValueAtTime(300, audioCtx.currentTime + 30);
+            
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            
+            osc.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+
+            // Periodic mysterious sonar/chime ping
+            setInterval(() => {
+                if(audioCtx.state === 'running') {
+                    const ping = audioCtx.createOscillator();
+                    const pingGain = audioCtx.createGain();
+                    ping.type = 'sine';
+                    // Slightly randomized ping frequency for an eerie feel
+                    const freq = 600 + (Math.random() * 400); 
+                    ping.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    ping.frequency.exponentialRampToValueAtTime(freq/2, audioCtx.currentTime + 2);
+                    
+                    pingGain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    pingGain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.1);
+                    pingGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.5);
+                    
+                    // Add some reverb-like delay if possible, or just standard connection
+                    ping.connect(pingGain);
+                    pingGain.connect(audioCtx.destination);
+                    ping.start();
+                    ping.stop(audioCtx.currentTime + 2.5);
+                }
+            }, 12000);
+        }
+
+        function playShootSound(isSuper = false) {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = isSuper ? 'sawtooth' : 'square';
+            osc.frequency.setValueAtTime(isSuper ? 800 : 500, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+            
+            gain.gain.setValueAtTime(isSuper ? 0.2 : 0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        const scene = new THREE.Scene();
+        // Deep water fog - critical for the oceanic atmosphere
+        scene.background = new THREE.Color(0x001524);
+        scene.fog = new THREE.FogExp2(0x001524, 0.02); // Slightly less dense to see the temple better
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 2, 80); // Start slightly away from center
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('game-container').appendChild(renderer.domElement);
+
+        const controls = new PointerLockControls(camera, document.body);
+        
+        // Lighting setup
+        const ambientLight = new THREE.AmbientLight(0x203040, 1.2);
+        scene.add(ambientLight);
+        
+        const dirLight = new THREE.DirectionalLight(0x00e5ff, 1.5);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 200;
+        dirLight.shadow.camera.left = -100;
+        dirLight.shadow.camera.right = 100;
+        dirLight.shadow.camera.top = 100;
+        dirLight.shadow.camera.bottom = -100;
+        scene.add(dirLight);
+
+        // Core central light to make the temple glow
+        const pointLight = new THREE.PointLight(0x00ffcc, 2, 100);
+        pointLight.position.set(0, 10, 0);
+        scene.add(pointLight);
+
+        const collidableObjects = []; // Used for movement collision and shooting
+        
+        // Ocean Floor
+        const floorGeo = new THREE.PlaneGeometry(300, 300, 64, 64);
+        // Slightly displace vertices for rough ocean floor
+        const pos = floorGeo.attributes.position;
+        for(let i=0; i<pos.count; i++) {
+            pos.setZ(i, pos.getZ(i) + (Math.random() * 1.5 - 0.75));
+        }
+        floorGeo.computeVertexNormals();
+        
+        const floorMat = new THREE.MeshStandardMaterial({ 
+            color: 0x051a24, 
+            roughness: 0.9, 
+            metalness: 0.1,
+            flatShading: true
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Generate Structured Temple Ruins
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x1a2b3c, roughness: 0.8 });
+        const glowingMat = new THREE.MeshStandardMaterial({ color: 0x112233, emissive: 0x004455, roughness: 0.6 });
+
+        function createTemple() {
+            const templeGroup = new THREE.Group();
+
+            // Central Altar/Base (Ziggurat style)
+            for(let i = 0; i < 3; i++) {
+                const baseGeo = new THREE.BoxGeometry(40 - i*8, 2, 40 - i*8);
+                const base = new THREE.Mesh(baseGeo, i % 2 === 0 ? stoneMat : glowingMat);
+                base.position.y = 1 + i*2;
+                base.receiveShadow = true;
+                base.castShadow = true;
+                templeGroup.add(base);
+                collidableObjects.push(base);
+            }
+
+            // Pillars (Mandapa columns)
+            const pillarGeo = new THREE.CylinderGeometry(1.5, 1.5, 20, 16);
+            const pillarPositions = [
+                [-15, -15], [15, -15], [-15, 15], [15, 15],
+                [-25, -25], [25, -25], [-25, 25], [25, 25],
+                [-35, 0], [35, 0], [0, -35], [0, 35]
+            ];
+
+            pillarPositions.forEach(pos => {
+                const pillar = new THREE.Mesh(pillarGeo, stoneMat);
+                pillar.position.set(pos[0], 10, pos[1]);
+                pillar.castShadow = true;
+                pillar.receiveShadow = true;
+                templeGroup.add(pillar);
+                collidableObjects.push(pillar);
+                
+                // Add floating glowing runes around pillars
+                const runeGeo = new THREE.TorusGeometry(2, 0.2, 8, 24);
+                const rune = new THREE.Mesh(runeGeo, new THREE.MeshBasicMaterial({color: 0x00e5ff, wireframe: true}));
+                rune.position.copy(pillar.position);
+                rune.position.y = 5 + Math.random() * 10;
+                rune.rotation.x = Math.PI / 2;
+                // Animate runes later
+                rune.userData = { isRune: true, speed: Math.random() * 0.02 + 0.01 };
+                templeGroup.add(rune);
+            });
+
+            // Outer ancient walls
+            const wallGeo = new THREE.BoxGeometry(100, 15, 4);
+            const walls = [
+                { pos: [0, 7.5, -50], rot: 0 },
+                { pos: [0, 7.5, 50], rot: 0 },
+                { pos: [-50, 7.5, 0], rot: Math.PI / 2 },
+                { pos: [50, 7.5, 0], rot: Math.PI / 2 }
+            ];
+
+            walls.forEach(w => {
+                const wall = new THREE.Mesh(wallGeo, stoneMat);
+                wall.position.set(w.pos[0], w.pos[1], w.pos[2]);
+                wall.rotation.y = w.rot;
+                wall.castShadow = true;
+                wall.receiveShadow = true;
+                templeGroup.add(wall);
+                collidableObjects.push(wall);
+            });
+
+            scene.add(templeGroup);
+            return templeGroup;
+        }
+        const temple = createTemple();
+
+        const relics = [];
+        function createRelics(count) {
+            // Clear old relics
+            relics.forEach(r => scene.remove(r));
+            relics.length = 0;
+            
+            const relicGeo = new THREE.OctahedronGeometry(1.5);
+            const relicMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xaa5500, wireframe: true });
+            
+            for(let i=0; i<count; i++) {
+                const relic = new THREE.Mesh(relicGeo, relicMat);
+                // Spread randomly for exploration
+                relic.position.set((Math.random() - 0.5) * 140, 2 + Math.random() * 5, (Math.random() - 0.5) * 140);
+                relic.userData = { isRelic: true, collected: false };
+                scene.add(relic);
+                relics.push(relic);
+            }
+        }
+        createRelics(GameState.relicsTotal);
+
+        const enemies = [];
+        
+        class HumanoidGuardian {
+            constructor(isBoss = false) {
+                this.isBoss = isBoss;
+                this.health = isBoss ? (400 + GameState.chapter * 100) : (50 + GameState.chapter * 20);
+                this.mesh = new THREE.Group(); // The master container
+                
+                const armorColor = isBoss ? 0xff2200 : 0x00ffaa;
+                const emissiveColor = isBoss ? 0x660000 : 0x004422;
+                
+                const mat = new THREE.MeshStandardMaterial({ 
+                    color: armorColor,
+                    emissive: emissiveColor,
+                    roughness: 0.3,
+                    metalness: 0.8
+                });
+                
+                const scaleMulti = isBoss ? 2.5 : 1.2;
+
+                // 1. Torso
+                const torsoGeo = new THREE.BoxGeometry(1 * scaleMulti, 1.5 * scaleMulti, 0.5 * scaleMulti);
+                this.torso = new THREE.Mesh(torsoGeo, mat);
+                this.torso.position.y = 2.5 * scaleMulti;
+                this.torso.castShadow = true;
+                this.mesh.add(this.torso);
+
+                // 2. Head (with glowing visor)
+                const headGeo = new THREE.BoxGeometry(0.6 * scaleMulti, 0.6 * scaleMulti, 0.6 * scaleMulti);
+                this.head = new THREE.Mesh(headGeo, mat);
+                this.head.position.y = 1.2 * scaleMulti; // Relative to torso
+                
+                const visorGeo = new THREE.PlaneGeometry(0.4 * scaleMulti, 0.15 * scaleMulti);
+                const visorMat = new THREE.MeshBasicMaterial({ color: isBoss ? 0xffffff : 0x00ffff });
+                const visor = new THREE.Mesh(visorGeo, visorMat);
+                visor.position.set(0, 0, 0.31 * scaleMulti);
+                this.head.add(visor);
+                this.torso.add(this.head);
+
+                // Helper function to create pivoting limbs
+                const createLimb = (width, length, depth, posX, posY, posZ) => {
+                    const group = new THREE.Group();
+                    const geo = new THREE.BoxGeometry(width, length, depth);
+                    const mesh = new THREE.Mesh(geo, mat);
+                    mesh.position.y = -length / 2; // Shift mesh down so pivot is at the top
+                    mesh.castShadow = true;
+                    group.add(mesh);
+                    group.position.set(posX, posY, posZ);
+                    return group;
+                };
+
+                // 3. Arms
+                this.leftArm = createLimb(0.3 * scaleMulti, 1.2 * scaleMulti, 0.3 * scaleMulti, -0.65 * scaleMulti, 0.6 * scaleMulti, 0);
+                this.rightArm = createLimb(0.3 * scaleMulti, 1.2 * scaleMulti, 0.3 * scaleMulti, 0.65 * scaleMulti, 0.6 * scaleMulti, 0);
+                this.torso.add(this.leftArm);
+                this.torso.add(this.rightArm);
+
+                // 4. Legs
+                this.leftLeg = createLimb(0.4 * scaleMulti, 1.5 * scaleMulti, 0.4 * scaleMulti, -0.3 * scaleMulti, -0.75 * scaleMulti, 0);
+                this.rightLeg = createLimb(0.4 * scaleMulti, 1.5 * scaleMulti, 0.4 * scaleMulti, 0.3 * scaleMulti, -0.75 * scaleMulti, 0);
+                this.torso.add(this.leftLeg);
+                this.torso.add(this.rightLeg);
+
+                // Positioning
+                this.resetPosition();
+                
+                scene.add(this.mesh);
+                
+                // Add torso and limbs to collidable list for raycasting
+                [this.torso, this.head, this.leftArm.children[0], this.rightArm.children[0], this.leftLeg.children[0], this.rightLeg.children[0]].forEach(part => {
+                    part.userData = { parentEntity: this }; // Link back to the logic class
+                    collidableObjects.push(part);
+                });
+
+                // AI State variables
+                this.state = 'patrol'; // 'patrol', 'chase', 'evade', 'flank'
+                this.targetPos = new THREE.Vector3();
+                this.stateTimer = 0;
+                this.walkCycle = Math.random() * Math.PI * 2;
+                this.speed = this.isBoss ? 5 : 2.5 + (GameState.chapter * 0.5);
+            }
+
+            resetPosition() {
+                // Spawn safely away from center (0,0) and away from player
+                let valid = false;
+                while(!valid) {
+                    this.mesh.position.set((Math.random() - 0.5) * 80, 0, (Math.random() - 0.5) * 80);
+                    if(this.mesh.position.distanceTo(camera.position) > 20 && this.mesh.position.length() > 15) {
+                        valid = true;
+                    }
+                }
+            }
+
+            update(delta, time) {
+                const distToPlayer = this.mesh.position.distanceTo(camera.position);
+
+                // AI State Machine (The Strategy Element)
+                if (time > this.stateTimer) {
+                    if (this.isBoss) {
+                        this.state = 'chase'; // Boss logic
+                        this.stateTimer = time + 1;
+                        this.speed = 6 + GameState.chapter;
+                    } else {
+                        if (distToPlayer > 50) {
+                            this.state = 'patrol';
+                            this.targetPos.set(this.mesh.position.x + (Math.random() - 0.5) * 30, 0, this.mesh.position.z + (Math.random() - 0.5) * 30);
+                            this.stateTimer = time + 3 + Math.random() * 3;
+                        } else if (distToPlayer < 25) {
+                            // Apply Strategy heavily adapted from Silent AI training
+                            const rand = Math.random();
+                            if (rand < GameState.enemyStrategy.evasionRate) {
+                                this.state = 'evade';
+                                const awayVec = new THREE.Vector3().subVectors(this.mesh.position, camera.position).normalize();
+                                const cross = new THREE.Vector3().crossVectors(awayVec, new THREE.Vector3(0,1,0)).multiplyScalar((Math.random() > 0.5 ? 1 : -1) * 20);
+                                this.targetPos.copy(this.mesh.position).add(awayVec.multiplyScalar(8)).add(cross);
+                                this.stateTimer = time + 1.2; 
+                                this.speed = (5 + GameState.chapter) * GameState.enemyStrategy.speedMultiplier;
+                            } else if (rand < GameState.enemyStrategy.evasionRate + GameState.enemyStrategy.flankRate) {
+                                this.state = 'flank';
+                                const toPlayer = new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize();
+                                const cross = new THREE.Vector3().crossVectors(toPlayer, new THREE.Vector3(0,1,0)).multiplyScalar((Math.random() > 0.5 ? 1 : -1) * 25);
+                                this.targetPos.copy(camera.position).add(cross);
+                                this.stateTimer = time + 2.0;
+                                this.speed = (4 + GameState.chapter) * GameState.enemyStrategy.speedMultiplier;
+                            } else {
+                                this.state = 'chase';
+                                this.stateTimer = time + 2;
+                                this.speed = (3.5 + GameState.chapter) * GameState.enemyStrategy.speedMultiplier;
+                            }
+                        } else {
+                            this.state = 'chase';
+                            this.stateTimer = time + 2;
+                            this.speed = (3.5 + GameState.chapter) * GameState.enemyStrategy.speedMultiplier;
+                        }
+                    }
+                }
+
+                // Update target if chasing or flanking
+                if (this.state === 'chase' || this.state === 'flank') {
+                    this.targetPos.copy(camera.position);
+                    this.targetPos.y = 0;
+                }
+
+                // Movement Execution
+                const dir = new THREE.Vector3().subVectors(this.targetPos, this.mesh.position);
+                dir.y = 0;
+                if(dir.length() > 0.5) {
+                    dir.normalize();
+                    this.mesh.position.add(dir.multiplyScalar(this.speed * delta));
+                    
+                    // Look in direction of travel
+                    const lookTarget = this.mesh.position.clone().add(dir);
+                    this.mesh.lookAt(lookTarget);
+
+                    // Procedural Walk Animation (swinging arms and legs)
+                    this.walkCycle += this.speed * delta * 2;
+                    const swing = Math.sin(this.walkCycle);
+                    this.leftArm.rotation.x = -swing;
+                    this.rightArm.rotation.x = swing;
+                    this.leftLeg.rotation.x = swing;
+                    this.rightLeg.rotation.x = -swing;
+                    
+                    // Bobbing torso
+                    this.torso.position.y = (this.isBoss ? 2.5 * 2.5 : 2.5 * 1.2) + Math.abs(Math.sin(this.walkCycle * 2)) * 0.1;
+                }
+            }
+
+            takeDamage(amount) {
+                this.health -= amount;
+                
+                // Flash white on hit
+                this.torso.material.emissive.setHex(0xffffff);
+                setTimeout(() => {
+                    if(this.torso) this.torso.material.emissive.setHex(this.isBoss ? 0x660000 : 0x004422);
+                }, 100);
+
+                if (this.health <= 0) {
+                    // Remove components from raycast array
+                    [this.torso, this.head, this.leftArm.children[0], this.rightArm.children[0], this.leftLeg.children[0], this.rightLeg.children[0]].forEach(part => {
+                        const idx = collidableObjects.indexOf(part);
+                        if(idx > -1) collidableObjects.splice(idx, 1);
+                    });
+                    
+                    scene.remove(this.mesh);
+                    return true; // Destroyed
+                }
+                return false;
+            }
+        }
+
+        // Initial spawn
+        for(let i=0; i<6; i++) enemies.push(new HumanoidGuardian());
+
+        const startMenu = document.getElementById('start-menu');
+        const startBtn = document.getElementById('start-btn');
+        const hintBtn = document.getElementById('hint-btn');
+        const hintMenu = document.getElementById('hint-menu');
+        const closeHintBtn = document.getElementById('close-hint-btn');
+
+        startBtn.addEventListener('click', () => {
+            controls.lock();
+            initAudio();
+        });
+
+        controls.addEventListener('lock', () => {
+            startMenu.classList.add('hidden');
+            hintMenu.classList.add('hidden');
+            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        });
+
+        controls.addEventListener('unlock', () => {
+            if(!hintMenu.classList.contains('hidden') && GameState.health > 0) return; 
+            startMenu.classList.remove('hidden');
+            if(GameState.health <= 0) {
+                document.querySelector('#start-menu h1').innerText = "SYSTEM FAILURE";
+                document.querySelector('#start-menu p').innerText = "Integrity compromised by Guardian entities. Refresh page to restart sequence.";
+                document.getElementById('start-btn').classList.add('hidden');
+            }
+        });
+
+        hintBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('ai-hint-text').innerText = AIAgent.analyze();
+            controls.unlock();
+            hintMenu.classList.remove('hidden');
+            startMenu.classList.add('hidden');
+        });
+
+        closeHintBtn.addEventListener('click', () => { controls.lock(); });
+
+        function updateUI() {
+            document.getElementById('health-val').innerText = Math.floor(GameState.health);
+            document.getElementById('health-bar').style.width = GameState.health + '%';
+            document.getElementById('health-bar').style.background = GameState.health > 50 ? '#00e5ff' : (GameState.health > 25 ? '#ffaa00' : '#ff3333');
+            
+            document.getElementById('energy-val').innerText = Math.floor(GameState.energy);
+            document.getElementById('energy-bar').style.width = GameState.energy + '%';
+            if (GameState.energy >= 100) document.getElementById('energy-bar').style.background = '#ff0055'; // Superpower ready color
+            else document.getElementById('energy-bar').style.background = '#ffaa00';
+            
+            document.getElementById('relics-val').innerText = GameState.relicsCollected;
+            document.getElementById('score-val').innerText = GameState.score;
+        }
+
+        const moveState = { forward: false, backward: false, left: false, right: false };
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let prevTime = performance.now();
+
+        document.addEventListener('keydown', (e) => {
+            switch (e.code) {
+                case 'KeyW': case 'ArrowUp': moveState.forward = true; break;
+                case 'KeyA': case 'ArrowLeft': moveState.left = true; break;
+                case 'KeyS': case 'ArrowDown': moveState.backward = true; break;
+                case 'KeyD': case 'ArrowRight': moveState.right = true; break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch (e.code) {
+                case 'KeyW': case 'ArrowUp': moveState.forward = false; break;
+                case 'KeyA': case 'ArrowLeft': moveState.left = false; break;
+                case 'KeyS': case 'ArrowDown': moveState.backward = false; break;
+                case 'KeyD': case 'ArrowRight': moveState.right = false; break;
+            }
+        });
+
+        const raycaster = new THREE.Raycaster();
+        document.addEventListener('mousedown', (e) => {
+            if(!controls.isLocked) return;
+            // Left click for shooting, Right click could be used for alternate interactions
+            if(e.button === 0) fireWeapon();
+        });
+
+        function fireWeapon() {
+            GameState.shotsFired++;
+            const isSuper = GameState.energy >= 100;
+            const currentPower = isSuper ? GameState.weaponPower * 2.5 : GameState.weaponPower;
+            playShootSound(isSuper);
+
+            // Recoil
+            camera.position.y -= 0.05;
+            camera.rotation.x += 0.02;
+            setTimeout(() => { camera.position.y += 0.05; camera.rotation.x -= 0.02; }, 50);
+
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            
+            // Draw Laser line
+            const material = new THREE.LineBasicMaterial({ 
+                color: isSuper ? 0xff0055 : 0x00e5ff, 
+                linewidth: isSuper ? 4 : 2 
+            });
+            const points = [];
+            points.push(new THREE.Vector3(0, -0.3, -1).applyMatrix4(camera.matrixWorld));
+            
+            const intersects = raycaster.intersectObjects(collidableObjects, false);
+            if (intersects.length > 0) {
+                points.push(intersects[0].point);
+                
+                const hitMesh = intersects[0].object;
+                if (hitMesh.userData && hitMesh.userData.parentEntity) {
+                    // We hit a Guardian part
+                    GameState.hits++;
+                    AIAgent.silentlyLearn();
+                    
+                    const guardian = hitMesh.userData.parentEntity;
+                    
+                    // Headshot multiplier logic
+                    const damage = hitMesh === guardian.head ? currentPower * 2 : currentPower;
+
+                    if (guardian.takeDamage(damage)) {
+                        enemies.splice(enemies.indexOf(guardian), 1);
+                        GameState.score++;
+                        
+                        // Build energy up to 100
+                        if(GameState.energy < 100) GameState.energy = Math.min(100, GameState.energy + 15);
+                        else if (isSuper) GameState.energy = 0; // Reset after a super kill
+
+                        updateUI();
+                        
+                        // Respawn logic to maintain engagement loop
+                        setTimeout(() => {
+                            if(enemies.length < 12) enemies.push(new HumanoidGuardian());
+                        }, Math.random() * 2000 + 1000);
+                    } else if (isSuper) {
+                        GameState.energy = 0; // Super drains on hit even if no kill
+                        updateUI();
+                    }
+                }
+            } else {
+                points.push(raycaster.ray.direction.clone().multiplyScalar(100).add(raycaster.ray.origin));
+                if (isSuper) GameState.energy = 0; // Missed super shot drains energy
+                updateUI();
+            }
+
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+            setTimeout(() => { scene.remove(line); geometry.dispose(); material.dispose(); }, 100);
+        }
+
+        // Mobile Touch Implementation
+        let isTouching = false;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let lookStartX = 0;
+        let lookStartY = 0;
+
+        const leftTouch = document.getElementById('left-touch');
+        const rightTouch = document.getElementById('right-touch');
+
+        if('ontouchstart' in window) {
+            // Enable mobile UI, auto-start game on tap to avoid pointer lock issues
+            startBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startMenu.classList.add('hidden');
+                initAudio();
+                GameState.isMobile = true;
+                document.getElementById('chapter-alert').innerText = "VIRTUAL JOYSTICK ENABLED";
+                document.getElementById('chapter-alert').style.opacity = 1;
+                setTimeout(() => document.getElementById('chapter-alert').style.opacity = 0, 2000);
+            });
+
+            leftTouch.addEventListener('touchstart', e => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+            });
+            leftTouch.addEventListener('touchmove', e => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                const diffX = touch.clientX - touchStartX;
+                const diffY = touch.clientY - touchStartY;
+                
+                moveState.forward = diffY < -20;
+                moveState.backward = diffY > 20;
+                moveState.left = diffX < -20;
+                moveState.right = diffX > 20;
+            });
+            leftTouch.addEventListener('touchend', e => {
+                e.preventDefault();
+                moveState.forward = moveState.backward = moveState.left = moveState.right = false;
+            });
+
+            rightTouch.addEventListener('touchstart', e => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                lookStartX = touch.clientX;
+                lookStartY = touch.clientY;
+                isTouching = true;
+            });
+            rightTouch.addEventListener('touchmove', e => {
+                e.preventDefault();
+                if(!isTouching) return;
+                const touch = e.changedTouches[0];
+                const diffX = touch.clientX - lookStartX;
+                const diffY = touch.clientY - lookStartY;
+                
+                // Simulate mouse look
+                const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+                euler.setFromQuaternion(camera.quaternion);
+                euler.y -= diffX * 0.005;
+                euler.x -= diffY * 0.005;
+                euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x));
+                camera.quaternion.setFromEuler(euler);
+                
+                lookStartX = touch.clientX;
+                lookStartY = touch.clientY;
+            });
+            rightTouch.addEventListener('touchend', e => {
+                e.preventDefault();
+                isTouching = false;
+                fireWeapon(); // Fire on tap release
+            });
+        }
+
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Simple AABB collision check for player against walls/base
+        function checkCollision(pos) {
+            const playerBox = new THREE.Box3(
+                new THREE.Vector3(pos.x - 1, pos.y - 2, pos.z - 1),
+                new THREE.Vector3(pos.x + 1, pos.y + 1, pos.z + 1)
+            );
+            
+            for(let obj of collidableObjects) {
+                // Ignore enemies for environment collision
+                if(obj.userData && obj.userData.parentEntity) continue;
+                
+                const objBox = new THREE.Box3().setFromObject(obj);
+                if(playerBox.intersectsBox(objBox)) return true;
+            }
+            return false;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+            const clockTime = time / 1000;
+            
+            // Background AI Training logic
+            AIAgent.silentlyLearn(delta, camera.position);
+
+            if ((controls.isLocked || GameState.isMobile) && GameState.health > 0) {
+                // Apply drag/friction
+                velocity.x -= velocity.x * 8.0 * delta;
+                velocity.z -= velocity.z * 8.0 * delta;
+
+                direction.z = Number(moveState.forward) - Number(moveState.backward);
+                direction.x = Number(moveState.right) - Number(moveState.left);
+                direction.normalize();
+
+                const speed = 50.0;
+                if (moveState.forward || moveState.backward) velocity.z -= direction.z * speed * delta;
+                if (moveState.left || moveState.right) velocity.x -= direction.x * speed * delta;
+
+                // Store previous position to revert if colliding
+                const oldX = controls.object.position.x;
+                const oldZ = controls.object.position.z;
+
+                controls.moveRight(-velocity.x * delta);
+                if(checkCollision(controls.object.position)) {
+                    controls.object.position.x = oldX;
+                    velocity.x = 0;
+                }
+
+                controls.moveForward(-velocity.z * delta);
+                if(checkCollision(controls.object.position)) {
+                    controls.object.position.z = oldZ;
+                    velocity.z = 0;
+                }
+                
+                // Arena boundaries
+                if(camera.position.x > 80) camera.position.x = 80;
+                if(camera.position.x < -80) camera.position.x = -80;
+                if(camera.position.z > 80) camera.position.z = 80;
+                if(camera.position.z < -80) camera.position.z = -80;
+                
+                // Head bobbing logic based on movement
+                if(velocity.length() > 2) {
+                    camera.position.y = 2 + Math.sin(time * 0.01) * 0.1;
+                } else {
+                    camera.position.y = THREE.MathUtils.lerp(camera.position.y, 2, 0.1);
+                }
+
+                // Relic Collection Logic (Exploration Focus)
+                relics.forEach(relic => {
+                    if (!relic.userData.collected) {
+                        relic.rotation.y += 1 * delta;
+                        relic.rotation.x += 0.5 * delta;
+                        
+                        // Check distance to player
+                        if (camera.position.distanceTo(relic.position) < 3.5) {
+                            relic.userData.collected = true;
+                            scene.remove(relic);
+                            GameState.relicsCollected++;
+                            GameState.score += 5; // Bonus score for exploration
+                            
+                            if(GameState.energy < 100) GameState.energy = Math.min(100, GameState.energy + 25);
+                            updateUI();
+                            
+                            // Visual feedback for pickup
+                            document.getElementById('heal-marker').style.background = 'radial-gradient(circle, rgba(255,170,0,0) 60%, rgba(255,170,0,0.4) 100%)';
+                            document.getElementById('heal-marker').style.opacity = 1;
+                            setTimeout(() => {
+                                document.getElementById('heal-marker').style.opacity = 0;
+                                setTimeout(() => { document.getElementById('heal-marker').style.background = 'radial-gradient(circle, rgba(0,255,170,0) 60%, rgba(0,255,170,0.3) 100%)'; }, 500);
+                            }, 300);
+
+                            // Check chapter progression based on Relics
+                            if (GameState.relicsCollected >= GameState.relicsTotal) {
+                                if (GameState.chapter === 3 && !GameState.isBossSpawned) {
+                                    GameState.isBossSpawned = true;
+                                    const alertEl = document.getElementById('chapter-alert');
+                                    alertEl.innerText = "THE ANCIENT ASURA HAS AWOKEN";
+                                    alertEl.style.color = "#ff3300";
+                                    alertEl.style.opacity = 1;
+                                    setTimeout(() => { alertEl.style.opacity = 0; alertEl.style.color = "var(--primary)"; }, 4000);
+                                    enemies.push(new HumanoidGuardian(true)); 
+                                } else {
+                                    advanceChapter();
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Update Enemies
+                enemies.forEach(enemy => enemy.update(delta, clockTime));
+                
+                // Enemy Damage Logic (Melee range)
+                let damagedThisFrame = false;
+                enemies.forEach(enemy => {
+                    // Check distance against torso position
+                    const torsoWorldPos = new THREE.Vector3();
+                    enemy.torso.getWorldPosition(torsoWorldPos);
+                    
+                    if (torsoWorldPos.distanceTo(camera.position) < 3.5) {
+                        GameState.health -= (enemy.isBoss ? 1.5 : 0.4);
+                        damagedThisFrame = true;
+                    }
+                });
+
+                if(damagedThisFrame) {
+                    updateUI();
+                    document.getElementById('hit-marker').style.opacity = 1;
+                    if(GameState.health <= 0) controls.unlock(); // Trigger death state
+                } else {
+                    document.getElementById('hit-marker').style.opacity = Math.max(0, parseFloat(document.getElementById('hit-marker').style.opacity) - 0.05);
+                }
+                
+                // Animate Runes in the environment
+                temple.children.forEach(child => {
+                    if(child.userData && child.userData.isRune) {
+                        child.rotation.z += child.userData.speed;
+                        child.position.y += Math.sin(time * 0.002) * 0.01;
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+            prevTime = time;
+        }
+
+        // Initialize UI before loop
+        updateUI();
+        animate();
+    </script>
+</body>
+</html>
